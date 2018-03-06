@@ -1,0 +1,135 @@
+#! /bin/bash
+
+create_db() {
+clear
+read -p "Enter DataBase Name To Create: " dbname
+
+if [ -d $dbname ]
+then
+echo "Couldn't Create
+A DataBase With Same name already exist"
+else
+mkdir $dbname
+echo "DataBase * $dbname * Created Successfully"
+fi
+} #end of create_db func
+
+switch_to_db(){
+if [ -d $1 ]
+then
+cd $1
+else
+echo "Error DataBase Doesn't Exists"
+exit
+fi
+} #end of switch_db func
+
+func_list(){
+list=`ls -lh | cut -d" " -f10`
+if [ -z $list ]
+then
+echo "Empty Folder"
+else
+for f in $list
+do
+if [ -d $f ]
+then
+echo $f
+fi
+done
+fi
+} #end of listing func
+
+
+# add_filed function is still not efficiently working
+add_filed(){
+values=()
+read -p "Enter values: " values
+echo $values
+
+for val in ${values[@]}
+do
+echo $val
+done
+
+} # end of field func
+
+
+create_table(){
+clear
+echo "Current Databases: "
+func_list
+read -p "Choose DataBase: " dbtouse
+switch_to_db $dbtouse
+clear
+echo "Current Tables: "
+ls
+read -p "Create Table: " tablename
+
+if [ -f $tablename ]
+then
+echo "Table Already Exists"
+exit
+else
+touch $tablename
+
+add_filed >> $tablename
+
+echo "Table : $tablename  Created Successfully in * $dbtouse * DataBase"
+cd ..
+fi
+
+} #end of table creation function
+
+
+drop_table(){
+func_list
+read -p "Choose DataBase: " dbtouse
+switch_to_db $dbtouse
+ls
+
+read -p "Enter Table Name To Drop: " tabledropname
+if [ -f $tabledropname ]
+then
+rm $tabledropname
+cd ..
+else
+echo "Table Doesn't Exist"
+cd ..
+fi
+
+} #end of dropping table func
+
+
+while true
+do
+
+echo "Welcome To DataBase Manager
+
+1- Create New DataBase
+2- Create Table
+3- Alter Table
+4- Add Record
+5- Edit Record
+6- Select Record
+7- Display Table
+8- Sort Table
+9- Drop Table
+10- Exit Manager "
+read -p "CHOOSE AN OPTION: " option
+case $option in
+1) create_db ;;
+2) create_table ;;
+3) alter_table ;;
+4) add_filed ;;
+5) select_record ;;
+6) edit_record ;;
+7) display_table ;;
+8) sort_table ;;
+9) drop_table ;;
+10) exit ;;
+esac
+
+done
+
+
