@@ -26,7 +26,7 @@ fi
 
 func_list(){
 list=`ls -lh | cut -d" " -f10`
-if [ -z $list ]
+if [[ $list == "" ]]
 then
 echo "Empty Folder"
 else
@@ -39,6 +39,17 @@ fi
 done
 fi
 } #end of listing func
+
+table_list(){
+	tablelist=`ls`
+if [[ $tablelist == "" ]]
+then
+echo "No Tables To Show Database is Empty "
+else
+	echo $tablelist
+fi
+}
+
 
 
 # add_filed function is still not efficiently working
@@ -54,6 +65,95 @@ done
 
 } # end of field func
 
+funccheck(){
+	read -p "Enter Column [$i] Name: " ColName 
+	resultfield=`grep $ColName $tablename | wc -l`
+
+	if [[ $resultfield -eq 0 ]]
+		then
+    colArr[$i]=$ColName
+    echo -n $ColName >> $tablename
+    PS3="Select Column [$ColName]  Data Type: ";
+    flag=0
+
+      				select colType in Ineteger String
+      				do
+      					case $colType in
+      						"Ineteger")
+								echo -n ":Ineteger" >> $tablename;
+      							break ;
+      							;;
+      						"String")
+								echo -n ":String" >> $tablename;
+      							break ;
+      							;;
+      						*)
+								echo "You Must Choose Column Data Type"
+      					esac
+      				done
+      				
+      				 result=`grep '\<Primary\>' $tablename | wc -l`
+
+      				echo " "
+      				echo "Select Primary Key"
+      				echo " "
+      				if [[ $result -eq 0 ]]
+      					then
+      				select colType in Primary NotPrimary
+      				do
+      					case $colType in
+      						"Primary")
+flag=1
+								echo -e ":Primary" >> $tablename;
+								 
+      							break ;
+      							;;
+      						"NotPrimary")
+								echo -n ":NotPrimary" >> $tablename;
+      							break ;
+      							;;
+      						*)
+								echo "You Must Choose The Primary Key"
+      					esac
+      				done
+      			else
+      				echo -n ":NotPrimary" >> $tablename;
+      			    fi # end of primary selection
+                    
+                      
+                     if [[ flag -eq 0 ]]
+                     	then
+                     	flag=1
+      			    # select null constrains
+      				echo " "
+      				echo "Select Null OR Not Null Constrain for $ColName Field"
+      				echo " "
+      				select colType in NotNull AcceptNull
+      				do
+      					case $colType in
+      						"NotNull")
+								echo -n ":NotNull" >> $tablename;
+								read -p "Enter Default Value: " defvalue
+
+                                 echo -e "*$defvalue*" >> $tablename  
+
+      							break ;
+      							;;
+      						"AcceptNull")
+								echo -e ":AcceptNull" >> $tablename;
+      							break ;
+      							;;
+      						*)
+								echo "You Must Choose Column Constrain"
+      					esac
+      				done #end of null constrain
+      			fi
+    else
+    	echo "Field Already Exist"
+    	funccheck
+    	
+    fi
+}
 
 create_table(){
 clear
@@ -63,30 +163,60 @@ read -p "Choose DataBase: " dbtouse
 switch_to_db $dbtouse
 clear
 echo "Current Tables: "
-ls
+table_list
 read -p "Create Table: " tablename
 
 if [ -f $tablename ]
 then
 echo "Table Already Exists"
 exit
+
 else
+	
+	clear
 touch $tablename
+if [ $? == 0 ]
+	then
+	echo "*****************************************" >> $tablename
+	echo "Table *"$tablename"* Schema" >> $tablename
+	read -p "Enter Columns Number: " colnumbers
+	echo "Columns Numbers = " $colnumbers >> $tablename         
+	echo "*****************************************" >> $tablename
+	for ((i=1;i<=$colnumbers;i++ ))
+	do 
+	echo "*****************************************"
 
-add_filed >> $tablename
+	funccheck
+	done
+	echo "*****************************************" >> $tablename
 
+
+clear
+echo "Creating Table Please Wait"
+sleep 1
+clear
 echo "Table : $tablename  Created Successfully in * $dbtouse * DataBase"
+
+fi
+sleep 1
 cd ..
 fi
 
 } #end of table creation function
 
+drop_db(){
+	echo "Current Databases"
+	func_list
+	read -p "Choose DataBase To Drop: " dbtodrop
+	rm -r $dbtodrop
+
+}
 
 drop_table(){
 func_list
 read -p "Choose DataBase: " dbtouse
 switch_to_db $dbtouse
-ls
+table_list
 
 read -p "Enter Table Name To Drop: " tabledropname
 if [ -f $tabledropname ]
@@ -103,19 +233,21 @@ fi
 
 while true
 do
-
+clear
 echo "Welcome To DataBase Manager
 
-1- Create New DataBase
-2- Create Table
-3- Alter Table
-4- Add Record
-5- Edit Record
-6- Select Record
-7- Display Table
-8- Sort Table
-9- Drop Table
-10- Exit Manager "
+1-  Create New DataBase
+2-  Create Table
+3-  Alter Table
+4-  Add Record
+5-  Edit Record
+6-  Select Record
+7-  Display Table
+8-  Sort Table
+9-  Drop Table
+10- Drop DB
+11- Quit Manager
+"
 read -p "CHOOSE AN OPTION: " option
 case $option in
 1) create_db ;;
@@ -127,7 +259,8 @@ case $option in
 7) display_table ;;
 8) sort_table ;;
 9) drop_table ;;
-10) exit ;;
+10) drop_db ;;
+11) exit ;;
 esac
 
 done

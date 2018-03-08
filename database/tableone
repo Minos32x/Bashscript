@@ -1,0 +1,8 @@
+*****************************************
+Table *tableone* Schema
+Columns Numbers =  3
+*****************************************
+id:Ineteger:Primary
+name:String:NotPrimary:NotNull*name*
+age:Ineteger:NotPrimary:AcceptNull
+*****************************************

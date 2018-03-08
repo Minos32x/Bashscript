@@ -1,0 +1,8 @@
+*****************************************
+Table *tabletwo* Schema
+Columns Numbers =  3
+*****************************************
+name:String:Primary
+id:Ineteger:NotPrimary:NotNull*1*
+age:Ineteger:NotPrimary:AcceptNull
+*****************************************
