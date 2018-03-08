@@ -1,8 +1,7 @@
 *****************************************
-Table *tableone* Schema
-Columns Numbers =  3
+Table *b* Schema
+Columns Numbers =  2
 *****************************************
 id:Ineteger:Primary
-name:String:NotPrimary:NotNull*name*
-age:Ineteger:NotPrimary:AcceptNull
+name:String:NotPrimary:AcceptNull
 *****************************************

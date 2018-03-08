@@ -1,7 +1,13 @@
 #! /bin/bash
-
+flagchange=0
 create_db() {
 clear
+if [[ flagchange -eq 1 ]]
+	then
+cd ..
+flagchange=0	
+fi
+
 read -p "Enter DataBase Name To Create: " dbname
 
 if [ -d $dbname ]
@@ -35,6 +41,11 @@ do
 if [ -d $f ]
 then
 echo $f
+
+#elif [ -f $f ]
+#	then
+#	echo "No Data Base To Be Showen"
+#	break
 fi
 done
 fi
@@ -157,10 +168,12 @@ flag=1
 
 create_table(){
 clear
-echo "Current Databases: "
-func_list
-read -p "Choose DataBase: " dbtouse
-switch_to_db $dbtouse
+if [[ $dbtouse ]]
+	then
+# echo "Current Databases: "
+# func_list
+# read -p "Choose DataBase: " dbtouse
+# switch_to_db $dbtouse
 clear
 echo "Current Tables: "
 table_list
@@ -201,21 +214,28 @@ fi
 sleep 1
 cd ..
 fi
-
+else
+	
+	use_database
+fi
 } #end of table creation function
 
 drop_db(){
 	echo "Current Databases"
 	func_list
-	read -p "Choose DataBase To Drop: " dbtodrop
+		read -p "Choose DataBase To Drop: " dbtodrop
 	rm -r $dbtodrop
+	
+	
 
 }
 
 drop_table(){
-func_list
-read -p "Choose DataBase: " dbtouse
-switch_to_db $dbtouse
+	if [[ $dbtouse ]]
+		then
+#func_list
+#read -p "Choose DataBase: " dbtouse
+#switch_to_db $dbtouse
 table_list
 
 read -p "Enter Table Name To Drop: " tabledropname
@@ -227,40 +247,112 @@ else
 echo "Table Doesn't Exist"
 cd ..
 fi
-
+else
+	
+	use_database
+fi
 } #end of dropping table func
 
+change_table_name(){
+	echo "Availabe Tables"
+    table_list
+
+	read -p "Enter Old File Name" oldname
+	read -p "Enter New File Name" newname
+    mv $oldname $newname
+
+
+}
+
+alter_table(){
+if [[ $dbtouse ]] 
+	then
+	clear
+	echo " You Are on [ $dbtouse ] Database"
+while true
+  do
+echo "
+1- Change table name
+2- Add field
+3- Delete field
+4- Change field datatype
+5- Back To Manager
+"
+
+read -p "CHOOSE AN OPTION: " alteroption
+
+case $alteroption in
+	1) change_table_name ;;
+    2) add_filed;;
+	3) dele_field;;
+	4) change_field_type;;
+    5) break;;
+esac
+
+  done
+else
+	use_database
+fi
+
+
+}
+
+use_database(){
+	clear
+	echo "You Must Select Database First"
+echo "Current Databases:"
+	func_list
+	read -p "Select DataBase: " dbtouse
+switch_to_db $dbtouse
+flagchange=1
+echo "You Are Using [$dbtouse] Database"
+
+
+
+
+
+}
 
 while true
 do
 clear
-echo "Welcome To DataBase Manager
+if [[ $flagchange -eq 1 ]]
+	then
+echo "NOTE: You Are Using [$dbtouse] Database"
 
-1-  Create New DataBase
-2-  Create Table
-3-  Alter Table
-4-  Add Record
-5-  Edit Record
-6-  Select Record
-7-  Display Table
-8-  Sort Table
-9-  Drop Table
-10- Drop DB
-11- Quit Manager
+else 
+	echo "Warrning You Must Select Database First"
+fi
+echo " "
+echo "Welcome To DataBase Manager
+1-  Use DB
+2-  Create New DataBase
+3-  Create Table
+4-  Alter Table
+5-  Add Record
+6-  Edit Record
+7-  Select Record
+8-  Display Table
+9-  Sort Table
+10- Drop Table
+11- Drop DB
+12- Quit Manager
 "
 read -p "CHOOSE AN OPTION: " option
 case $option in
-1) create_db ;;
-2) create_table ;;
-3) alter_table ;;
-4) add_filed ;;
-5) select_record ;;
-6) edit_record ;;
-7) display_table ;;
-8) sort_table ;;
-9) drop_table ;;
-10) drop_db ;;
-11) exit ;;
+1) use_database ;;
+2) create_db ;;
+3) create_table ;;
+4) alter_table ;;
+5) add_filed ;;
+6) select_record ;;
+7) edit_record ;;
+8) display_table ;;
+9) sort_table ;;
+10) drop_table ;;
+11) drop_db ;;
+12) exit ;;
+
 esac
 
 done
