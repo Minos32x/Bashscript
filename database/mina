@@ -1,0 +1,6 @@
+*****************************************
+Table *mina* Schema
+Columns Numbers =  1
+*****************************************
+id:Ineteger:Primary
+end_conf

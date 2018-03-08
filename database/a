@@ -1,7 +1,11 @@
 *****************************************
 Table *a* Schema
-Columns Numbers =  2
+Columns Numbers =  3
 *****************************************
 id:Ineteger:Primary
-name:String:NotPrimary:AcceptNull
-*****************************************
+name:String:NotPrimary:NotNull*mina*
+age:Ineteger:NotPrimary:AcceptNull
+end_conf
+
+dslkfjdskljfsdkljf
+

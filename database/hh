@@ -1,0 +1,7 @@
+*****************************************
+Table *hh* Schema
+Columns Numbers =  2
+*****************************************
+aa:Ineteger:Primary
+ss:Ineteger:NotPrimary:AcceptNull
+end_conf

@@ -65,16 +65,117 @@ fi
 
 # add_filed function is still not efficiently working
 add_filed(){
-values=()
-read -p "Enter values: " values
-echo $values
+  echo "Availabe Tables"
+  table_list
+  read -p "choose table" tablename
+  read -p "number of col:" colnumbers
+  sed -i '/\<end_conf\>/d' $tablename 
+  for ((i=1;i<=$colnumbers;i++ ))
+  do 
+  
 
-for val in ${values[@]}
-do
-echo $val
-done
+  funccheck
+  done
+  echo "end_conf" >> $tablename
+
 
 } # end of field func
+
+delete_field()
+{
+  echo "Availabe Tables"
+  table_list
+  read -p "choose table" tablename
+endnum=`grep -n "end_conf" $tablename | grep -Eo '^[^:]+'`
+v=$(($endnum-1))
+echo $v
+t=$(($v-4))
+  echo "available fields :"
+  cat $tablename | head -$v | tail -$t | cut -d: -f1 
+  echo ""
+  read -p "choose field to delete" deleted_field
+  sed -i "/^$deleted_field:/d" $tablename 
+
+}
+
+change_field_type(){
+  clear
+echo "Availabe Tables"
+  table_list
+  read -p "Select Table: " tablename
+endnum=`grep -n "end_conf" $tablename | grep -Eo '^[^:]+'`
+v=$(($endnum-1))
+echo $v
+t=$(($v-4))
+  echo "available fields :"
+  cat $tablename | head -$v | tail -$t | cut -d: -f1 
+  echo ""
+  read -p "choose field to Edit: " field_to_edit
+clear
+field_edit_dtype=`grep $field_to_edit $tablename | cut -d: -f2`
+field_edit_null=`grep $field_to_edit $tablename | cut -d: -f3`
+field_edit_null_check=`grep $field_to_edit $tablename | cut -d: -f4`
+ff=`grep -n $field_to_edit $tablename | grep -Eo '^[^:]+'`
+
+
+  echo "
+1-edit datatype
+2-edit null constrain"
+read -p "SELECT AN OPTION: " edit_field_type
+clear
+case $edit_field_type in
+1) echo "Current Data Type :" $field_edit_dtype
+select colType in Ineteger String
+              do
+                case $colType in
+                  "Ineteger")
+                # sed -i -e '$((ff))s/String/Ineteger/' $tablename 
+                awk -i inplace -v var2="$ff" 'NR==var2 {gsub("String","Ineteger")}{print }' $tablename
+                    break ;
+                    ;;
+                  "String")
+                awk -i inplace -v var2="$ff" 'NR==var2 {gsub("Ineteger","String")}{print }' $tablename 
+                    break ;
+                    ;;
+                  *)
+                echo "You Must Choose Column Data Type"
+                esac
+              done
+              
+
+;;
+2) 
+if [[ $field_edit_null ]]
+  then
+echo "Current Null Constrain :" $field_edit_null
+select colType in NotNull AcceptNull
+              do
+                case $colType in
+                  "NotNull")
+                   awk -i inplace -v var2="$ff" 'NR==var2 {gsub("AcceptNull","NotNull")}{print }' $tablename
+
+                    break ;
+                    ;;
+                  "AcceptNull")
+                                awk -i inplace -v var2="$ff" 'NR==var2 {gsub("NotNull","AcceptNull")}{print }' $tablename
+
+                    break ;
+                    ;;
+                  *)
+                echo "You Must Choose Column Data Type"
+                esac
+              done
+    else
+      echo "This Field Is Primary Cant have null option"
+    fi
+
+;;
+
+esac  
+clear
+
+
+}
 
 funccheck(){
 	read -p "Enter Column [$i] Name: " ColName 
@@ -114,7 +215,7 @@ funccheck(){
       				do
       					case $colType in
       						"Primary")
-flag=1
+                flag=1
 								echo -e ":Primary" >> $tablename;
 								 
       							break ;
@@ -201,7 +302,7 @@ if [ $? == 0 ]
 
 	funccheck
 	done
-	echo "*****************************************" >> $tablename
+	echo "end_conf" >> $tablename
 
 
 clear
@@ -212,7 +313,6 @@ echo "Table : $tablename  Created Successfully in * $dbtouse * DataBase"
 
 fi
 sleep 1
-cd ..
 fi
 else
 	
@@ -268,9 +368,11 @@ alter_table(){
 if [[ $dbtouse ]] 
 	then
 	clear
-	echo " You Are on [ $dbtouse ] Database"
+	#echo " You Are on [ $dbtouse ] Database"
 while true
   do
+    echo " You Are on [ $dbtouse ] Database"
+    echo ""
 echo "
 1- Change table name
 2- Add field
@@ -283,8 +385,8 @@ read -p "CHOOSE AN OPTION: " alteroption
 
 case $alteroption in
 	1) change_table_name ;;
-    2) add_filed;;
-	3) dele_field;;
+  2) add_filed;;
+	3) delete_field;;
 	4) change_field_type;;
     5) break;;
 esac

@@ -1,7 +1,0 @@
-*****************************************
-Table *b* Schema
-Columns Numbers =  2
-*****************************************
-id:Ineteger:Primary
-name:String:NotPrimary:AcceptNull
-*****************************************
