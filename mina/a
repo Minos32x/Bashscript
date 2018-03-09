@@ -1,0 +1,24 @@
+*****************************************
+Table *a* Schema
+Columns Numbers =  3
+*****************************************
+id:Ineteger:Primary
+name:String:NotPrimary:AcceptNull
+age:Ineteger:NotPrimary:AcceptNull
+email:String:NotPrimary:AcceptNull
+end_conf
+start_table
+1 mina 23
+2 ahme 26
+3 fahd 27
+9 asds 10
+5 hoss 27
+6 hass 20
+4 amra 24
+7 assd 20
+8 lksa 13
+12 min 23
+10 ldl 28
+11 dsd 31
+13 had 1
+14 has 9

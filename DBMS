@@ -1,5 +1,7 @@
 #! /bin/bash
 flagchange=0
+flagemptydb=0
+flagusingdb=0
 create_db() {
 clear
 if [[ flagchange -eq 1 ]]
@@ -7,6 +9,13 @@ if [[ flagchange -eq 1 ]]
 cd ..
 flagchange=0	
 fi
+
+if [[ $flagemptydb -eq 1 ]]
+  then
+echo "You Must Create DataBase First To Use It"
+fi
+
+flagemptydb=0
 
 read -p "Enter DataBase Name To Create: " dbname
 
@@ -17,6 +26,7 @@ A DataBase With Same name already exist"
 else
 mkdir $dbname
 echo "DataBase * $dbname * Created Successfully"
+# flagemptydb=0
 fi
 } #end of create_db func
 
@@ -31,10 +41,11 @@ fi
 } #end of switch_db func
 
 func_list(){
-list=`ls -lh | cut -d" " -f10`
+list=`ls -lh --ignore={".","..",".git","DBMS","README"} | grep '^d' | cut -d" " -f10`
 if [[ $list == "" ]]
 then
 echo "Empty Folder"
+flagemptydb=1
 else
 for f in $list
 do
@@ -60,7 +71,6 @@ else
 	echo $tablelist
 fi
 }
-
 
 
 # add_filed function is still not efficiently working
@@ -113,8 +123,7 @@ t=$(($v-4))
   read -p "choose field to Edit: " field_to_edit
 clear
 field_edit_dtype=`grep $field_to_edit $tablename | cut -d: -f2`
-field_edit_null=`grep $field_to_edit $tablename | cut -d: -f3`
-field_edit_null_check=`grep $field_to_edit $tablename | cut -d: -f4`
+field_edit_null=`grep $field_to_edit $tablename | cut -d: -f4`
 ff=`grep -n $field_to_edit $tablename | grep -Eo '^[^:]+'`
 
 
@@ -129,7 +138,7 @@ select colType in Ineteger String
               do
                 case $colType in
                   "Ineteger")
-                # sed -i -e '$((ff))s/String/Ineteger/' $tablename 
+                # sed -i -e '5s/String/Ineteger/' $tablename 
                 awk -i inplace -v var2="$ff" 'NR==var2 {gsub("String","Ineteger")}{print }' $tablename
                     break ;
                     ;;
@@ -157,7 +166,7 @@ select colType in NotNull AcceptNull
                     break ;
                     ;;
                   "AcceptNull")
-                                awk -i inplace -v var2="$ff" 'NR==var2 {gsub("NotNull","AcceptNull")}{print }' $tablename
+                    awk -i inplace -v var2="$ff" 'NR==var2 {gsub("NotNull","AcceptNull")}{print }' $tablename
 
                     break ;
                     ;;
@@ -303,6 +312,11 @@ if [ $? == 0 ]
 	funccheck
 	done
 	echo "end_conf" >> $tablename
+  echo " "
+  echo "start_table" >> $tablename
+  echo " "
+
+
 
 
 clear
@@ -323,8 +337,14 @@ fi
 drop_db(){
 	echo "Current Databases"
 	func_list
-		read -p "Choose DataBase To Drop: " dbtodrop
-	rm -r $dbtodrop
+  if [[ $flagusingdb -eq 1 ]]
+then
+echo "You Cant' Drop Database While Using It"
+else
+  read -p "Choose DataBase To Drop: " dbtodrop
+  rm -r $dbtodrop
+fi
+		
 	
 	
 
@@ -368,7 +388,7 @@ alter_table(){
 if [[ $dbtouse ]] 
 	then
 	clear
-	#echo " You Are on [ $dbtouse ] Database"
+	#         echo " You Are on [ $dbtouse ] Database"
 while true
   do
     echo " You Are on [ $dbtouse ] Database"
@@ -400,20 +420,204 @@ fi
 }
 
 use_database(){
-	clear
-	echo "You Must Select Database First"
+clear
+echo "You Must Select Database First"
 echo "Current Databases:"
-	func_list
-	read -p "Select DataBase: " dbtouse
+func_list
+
+if [[ $flagemptydb -eq 1 ]]
+  then
+    create_db
+else
+
+read -p "Select DataBase: " dbtouse
 switch_to_db $dbtouse
+flagusingdb=1
+fi
+
 flagchange=1
+
 echo "You Are Using [$dbtouse] Database"
+} # end of use_database function
 
 
+sort_table(){
 
+if [[ $dbtouse ]] 
+  then
+while true
+do 
+
+echo "
+1-Start Sorting 
+2-Back To Manager"
+read -p "Select Option : " sort_func_opt
+
+
+case $sort_func_opt in 
+  1)
+clear 
+echo "Availabe Tables: "
+echo ""
+table_list
+echo ""
+read -p "Enter Table Name To Sort It: " tablename
+
+startnum=`grep -n "start_table" $tablename | grep -Eo '^[^:]+'`
+
+total_list=`cat $tablename | wc -l`
+t1=$((total_list-startnum))  
+clear
+echo "Availabe Rows :"
+cat $tablename | tail -$t1
+
+endnum=`grep -n "end_conf" $tablename | grep -Eo '^[^:]+'`
+v=$(($endnum-1))
+t=$(($v-4))
+echo "Availabe Fields To Sort With :"
+to_count=`cat $tablename | head -$v | tail -$t | cut -d: -f1 | wc -l` 
+to_print=`cat $tablename | head -$v | tail -$t | cut -d: -f1` 
+
+for((i=1;i<=$to_count;i++))
+do
+  field_name=`echo $to_print | cut -d" " -f"$i"`
+  echo $i")" $field_name
+done
+read -p "Select Field To Sort With[Select No Of The Field] : " field_sort
+echo " 
+Choose preference to sort with 
+1- Ascending
+2- Descending
+"
+
+ch_field=$((field_sort+4))
+field_sort_type_check=`cat $tablename | head -$ch_field | tail -1 | cut -d: -f2`
+
+read -p "" sort_opt
+clear
+echo "*********************************************************" 
+echo "Current Columns"
+echo $to_print 
+case $sort_opt in
+  1)
+if [[ $field_sort_type_check == "Ineteger" ]]
+then
+cat $tablename | tail -$t1 | sort -t" " -k$field_sort -g  
+elif [[ $field_sort_type_check == "String" ]]
+  then
+cat $tablename | tail -$t1 | sort -t" " -k$field_sort  
+fi
+    ;;
+  2)
+if [[ $field_sort_type_check == "Ineteger" ]] 
+  then
+cat $tablename | tail -$t1 | sort -r -t" " -k$field_sort -g
+elif [[ $field_sort_type_check == "String" ]]
+  then
+cat $tablename | tail -$t1 | sort -r -t" " -k$field_sort
+fi
+  ;; 
+esac
+echo "*********************************************************" 
+
+;;
+2) break;;
+esac
+done
+
+else
+use_database
+
+  fi
+
+} # end of function sort 
+
+
+select_record(){
+  clear
+
+if [[ $dbtouse ]] 
+  then
+  echo "Availabe Tables: "
+table_list
+read -p "Enter Table Name To Select From It : " tablename
+  while true
+  do
+echo "
+Select Options :
+1- Select All
+2- Select According to Certain Field 
+3- Show All File in HTML From
+4- Show All File in CSV FORM
+5- Back To Manager
+"
+
+read -p "Choose an option: " select_opt
+
+case $select_opt in
+1)
+
+echo "*********************************************************" 
+startnum=`grep -n "start_table" $tablename | grep -Eo '^[^:]+'`
+total_list=`cat $tablename | wc -l`
+t1=$((total_list-startnum))  
+echo "Availabe Rows :"
+cat $tablename | tail -$t1 
+echo "*********************************************************"
+sleep 5
+;;
+
+2) ;;
+
+
+3)
+startnum=`grep -n "start_table" $tablename | grep -Eo '^[^:]+'`
+total_list=`cat $tablename | wc -l`
+t1=$((startnum+1))
+echo $t1
+echo $total_list  
+echo "Availabe Rows :"
+# cat $tablename | tail -$t1 >> table-$tablename.html
+endnum=`grep -n "end_conf" $tablename | grep -Eo '^[^:]+'`
+v=$(($endnum-1))
+t=$(($v-4))
+echo "Availabe Fields To Sort With :"
+to_count=`cat $tablename | head -$v | tail -$t | cut -d: -f1 | wc -l` 
+to_print=`cat $tablename | head -$v | tail -$t | cut -d: -f1` 
+
+for((i=1;i<=$to_count;i++))
+do
+  field_name=`echo $to_print | cut -d" " -f"$i"`
+  echo $i")" $field_name
+done
+
+echo "*********************************************************" 
+awk -v var1="$t1" -v var2="$total_list" -v lister="$to_print" ' BEGIN{FS=" "; print "<div style=background:blue>" "<strong>"lister"</strong>" "</div>"  "<br/>" }
+ NR==var1,NR==var2 { print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10 "<br/>" }' $tablename > $tablename.html
+echo "*********************************************************" 
+;;
+
+4)
+startnum=`grep -n "start_table" $tablename | grep -Eo '^[^:]+'`
+total_list=`cat $tablename | wc -l`
+t1=$((total_list-startnum))  
+echo "Availabe Rows :"
+# cat $tablename | tail -$t1 >>table-$tablename.csv
+awk -v var1="$t1" -v var2="$total_list" -v lister="$to_print" ' BEGIN{FS=" "; print "<strong>"lister"</strong>" "<br/>" }
+ NR==var1,NR==var2 { print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10 "<br/>" }' $tablename > $tablename.csv
+;;
+5) break ;;
+esac
+
+done
+
+else
+  use_database
+fi
 
 
 }
+
 
 while true
 do
@@ -440,6 +644,7 @@ echo "Welcome To DataBase Manager
 11- Drop DB
 12- Quit Manager
 "
+
 read -p "CHOOSE AN OPTION: " option
 case $option in
 1) use_database ;;
@@ -447,8 +652,8 @@ case $option in
 3) create_table ;;
 4) alter_table ;;
 5) add_filed ;;
-6) select_record ;;
-7) edit_record ;;
+6) edit_record ;;
+7) select_record ;;
 8) display_table ;;
 9) sort_table ;;
 10) drop_table ;;
