@@ -1,24 +1,22 @@
 #! /bin/bash
+addf="f"
 flagchange=0
 flagemptydb=0
 flagusingdb=0
+
 create_db() {
 clear
-if [[ flagchange -eq 1 ]]
+if [[ $flagchange -eq 1 ]]
 	then
 cd ..
 flagchange=0	
 fi
-
 if [[ $flagemptydb -eq 1 ]]
-  then
+then
 echo "You Must Create DataBase First To Use It"
 fi
-
 flagemptydb=0
-
 read -p "Enter DataBase Name To Create: " dbname
-
 if [ -d $dbname ]
 then
 echo "Couldn't Create
@@ -26,22 +24,56 @@ A DataBase With Same name already exist"
 else
 mkdir $dbname
 echo "DataBase * $dbname * Created Successfully"
-# flagemptydb=0
+
 fi
+
 } #end of create_db func
+
+
+use_database(){
+clear
+if [[ $flagchange == 1 ]]
+then
+cd ..
+fi
+	flagchange=1
+
+echo "You Must Select Database First"
+echo "Current Databases:"
+func_list
+
+if [[ $flagemptydb -eq 1 ]]
+  then
+    create_db
+else
+
+read -p "Select DataBase: " dbtouse
+switch_to_db $dbtouse
+flagusingdb=1
+fi
+
+
+
+
+
+echo "You Are Using [$dbtouse] Database"
+} # end of use_database function
+
 
 switch_to_db(){
 if [ -d $1 ]
 then
 cd $1
+
 else
 echo "Error DataBase Doesn't Exists"
-exit
+use_database
 fi
 } #end of switch_db func
 
+
 func_list(){
-list=`ls -lh --ignore={".","..",".git","DBMS","README"} | grep '^d' | cut -d" " -f10`
+list=`ls -lh --ignore={".","..",".git","DBMS","README"} | grep '^d' | cut -d" " -f9`
 if [[ $list == "" ]]
 then
 echo "Empty Folder"
@@ -52,79 +84,69 @@ do
 if [ -d $f ]
 then
 echo $f
-
-#elif [ -f $f ]
-#	then
-#	echo "No Data Base To Be Showen"
-#	break
 fi
 done
 fi
 } #end of listing func
 
 table_list(){
-	tablelist=`ls`
+
+	tablelist=`ls --ignore={"*.*",}`
 if [[ $tablelist == "" ]]
 then
 echo "No Tables To Show Database is Empty "
 else
 	echo $tablelist
 fi
-}
+} #end of table listing func
 
-
-# add_filed function is still not efficiently working
 add_filed(){
+
   echo "Availabe Tables"
   table_list
-  read -p "choose table" tablename
-  read -p "number of col:" colnumbers
-  sed -i '/\<end_conf\>/d' $tablename 
+  read -p "Select Table: " tablename
+  read -p "Enter No of Cols: " colnumbers
+  sed -i '/\<end_conf\>/d' $tablename.conf 
+  addf="t"
   for ((i=1;i<=$colnumbers;i++ ))
-  do 
-  
-
+  do   
   funccheck
   done
-  echo "end_conf" >> $tablename
-
-
+  echo "end_conf" >> $tablename.conf 
+  
 } # end of field func
 
-delete_field()
-{
-  echo "Availabe Tables"
-  table_list
-  read -p "choose table" tablename
-endnum=`grep -n "end_conf" $tablename | grep -Eo '^[^:]+'`
-v=$(($endnum-1))
-echo $v
-t=$(($v-4))
-  echo "available fields :"
-  cat $tablename | head -$v | tail -$t | cut -d: -f1 
-  echo ""
-  read -p "choose field to delete" deleted_field
-  sed -i "/^$deleted_field:/d" $tablename 
+delete_field(){
 
-}
+echo "Availabe Tables"
+table_list
+read -p "choose table: " tablename
+echo "available fields :"
+awk 'NR==2' $tablename
+read -p "choose field to delete: " deleted_field
+num=`awk -v target=$deleted_field '{if(NR == 2){for(i=1;i<=NF;i++){if ($i == target)print i}}}' $tablename`
+sed -i  "/^$deleted_field:/d" $tablename.conf
+awk -i inplace -F" " -v var="$num"  '{ $var="" ; print }' $tablename
+
+} #end of func delete_field
 
 change_field_type(){
+
   clear
 echo "Availabe Tables"
   table_list
   read -p "Select Table: " tablename
-endnum=`grep -n "end_conf" $tablename | grep -Eo '^[^:]+'`
+endnum=`grep -n "end_conf" $tablename.conf | grep -Eo '^[^:]+'`
 v=$(($endnum-1))
-echo $v
 t=$(($v-4))
   echo "available fields :"
-  cat $tablename | head -$v | tail -$t | cut -d: -f1 
+  cat $tablename.conf | head -$v | tail -$t | cut -d: -f1 
   echo ""
   read -p "choose field to Edit: " field_to_edit
 clear
-field_edit_dtype=`grep $field_to_edit $tablename | cut -d: -f2`
-field_edit_null=`grep $field_to_edit $tablename | cut -d: -f4`
-ff=`grep -n $field_to_edit $tablename | grep -Eo '^[^:]+'`
+field_edit_dtype=`grep $field_to_edit $tablename.conf | cut -d: -f2`
+field_edit_null=`grep $field_to_edit $tablename.conf | cut -d: -f4`
+ff=`grep -n $field_to_edit $tablename.conf | grep -Eo '^[^:]+'`
 
 
   echo "
@@ -139,11 +161,11 @@ select colType in Ineteger String
                 case $colType in
                   "Ineteger")
                 # sed -i -e '5s/String/Ineteger/' $tablename 
-                awk -i inplace -v var2="$ff" 'NR==var2 {gsub("String","Ineteger")}{print }' $tablename
+                awk -i inplace -v var2="$ff" 'NR==var2 {gsub("String","Ineteger")}{print }' $tablename.conf
                     break ;
                     ;;
                   "String")
-                awk -i inplace -v var2="$ff" 'NR==var2 {gsub("Ineteger","String")}{print }' $tablename 
+                awk -i inplace -v var2="$ff" 'NR==var2 {gsub("Ineteger","String")}{print }' $tablename.conf
                     break ;
                     ;;
                   *)
@@ -161,12 +183,12 @@ select colType in NotNull AcceptNull
               do
                 case $colType in
                   "NotNull")
-                   awk -i inplace -v var2="$ff" 'NR==var2 {gsub("AcceptNull","NotNull")}{print }' $tablename
+                   awk -i inplace -v var2="$ff" 'NR==var2 {gsub("AcceptNull","NotNull")}{print }' $tablename.conf
 
                     break ;
                     ;;
                   "AcceptNull")
-                    awk -i inplace -v var2="$ff" 'NR==var2 {gsub("NotNull","AcceptNull")}{print }' $tablename
+                    awk -i inplace -v var2="$ff" 'NR==var2 {gsub("NotNull","AcceptNull")}{print }' $tablename.conf
 
                     break ;
                     ;;
@@ -184,16 +206,30 @@ esac
 clear
 
 
-}
+} # end of change_field_type
+
 
 funccheck(){
 	read -p "Enter Column [$i] Name: " ColName 
+
 	resultfield=`grep $ColName $tablename | wc -l`
 
 	if [[ $resultfield -eq 0 ]]
 		then
     colArr[$i]=$ColName
-    echo -n $ColName >> $tablename
+    newconf[$i]=$ColName
+
+    echo -n "$ColName" >> $tablename.conf
+    if [[ $addf == "t" ]] #if add field
+      then
+     awk -i inplace -v col=" $ColName" 'NR==2 {$0=$0 col} 1' $tablename #to insert always in first line
+     addf="f"
+   else
+
+        echo -n "$ColName " >> $tablename
+
+   fi
+
     PS3="Select Column [$ColName]  Data Type: ";
     flag=0
 
@@ -201,11 +237,15 @@ funccheck(){
       				do
       					case $colType in
       						"Ineteger")
-								echo -n ":Ineteger" >> $tablename;
+								echo -n ":Ineteger" >> $tablename.conf;
+                  newconf[$i]=":Ineteger"
+
       							break ;
       							;;
       						"String")
-								echo -n ":String" >> $tablename;
+								echo -n ":String" >> $tablename.conf;
+                        newconf[$i]=":String"
+
       							break ;
       							;;
       						*)
@@ -213,24 +253,28 @@ funccheck(){
       					esac
       				done
       				
-      				 result=`grep '\<Primary\>' $tablename | wc -l`
-
+      				 result=`grep '\<Primary\>' $tablename.conf | wc -l`
+              if [[ $result -eq 0 ]]
+                then
       				echo " "
       				echo "Select Primary Key"
       				echo " "
-      				if [[ $result -eq 0 ]]
-      					then
+      			
       				select colType in Primary NotPrimary
       				do
       					case $colType in
       						"Primary")
                 flag=1
-								echo -e ":Primary" >> $tablename;
+								echo -e ":Primary" >> $tablename.conf;
+                newconf[$i]=":Primary"
+
 								 
       							break ;
       							;;
       						"NotPrimary")
-								echo -n ":NotPrimary" >> $tablename;
+								echo -n ":NotPrimary" >> $tablename.conf;
+                    newconf[$i]=":NotPrimary"
+
       							break ;
       							;;
       						*)
@@ -238,7 +282,10 @@ funccheck(){
       					esac
       				done
       			else
-      				echo -n ":NotPrimary" >> $tablename;
+      				echo -n ":NotPrimary" >> $tablename.conf;
+              newconf[$i]=":NotPrimary"
+
+
       			    fi # end of primary selection
                     
                       
@@ -253,15 +300,18 @@ funccheck(){
       				do
       					case $colType in
       						"NotNull")
-								echo -n ":NotNull" >> $tablename;
+								echo -n ":NotNull" >> $tablename.conf;
 								read -p "Enter Default Value: " defvalue
 
-                                 echo -e "*$defvalue*" >> $tablename  
+                                 echo -e ",$defvalue" >> $tablename.conf  
+                              newconf[$i]=":NotNull,$defvalue"
+
 
       							break ;
       							;;
       						"AcceptNull")
-								echo -e ":AcceptNull" >> $tablename;
+								echo -e ":AcceptNull" >> $tablename.conf;
+                newconf[$i]=":AcceptNull"
       							break ;
       							;;
       						*)
@@ -274,16 +324,12 @@ funccheck(){
     	funccheck
     	
     fi
-}
+} # end of funccheck function
 
 create_table(){
 clear
 if [[ $dbtouse ]]
 	then
-# echo "Current Databases: "
-# func_list
-# read -p "Choose DataBase: " dbtouse
-# switch_to_db $dbtouse
 clear
 echo "Current Tables: "
 table_list
@@ -297,27 +343,23 @@ exit
 else
 	
 	clear
+touch $tablename.conf
 touch $tablename
+echo -e "start_table" >> $tablename #edited here
 if [ $? == 0 ]
 	then
-	echo "*****************************************" >> $tablename
-	echo "Table *"$tablename"* Schema" >> $tablename
+	echo "*****************************************" >> $tablename.conf
+	echo "Table *"$tablename"* Schema" >> $tablename.conf
 	read -p "Enter Columns Number: " colnumbers
-	echo "Columns Numbers = " $colnumbers >> $tablename         
-	echo "*****************************************" >> $tablename
+	echo "Columns Numbers = " $colnumbers >> $tablename.conf         
+	echo "*****************************************" >> $tablename.conf
 	for ((i=1;i<=$colnumbers;i++ ))
 	do 
 	echo "*****************************************"
 
 	funccheck
 	done
-	echo "end_conf" >> $tablename
-  echo " "
-  echo "start_table" >> $tablename
-  echo " "
-
-
-
+	echo "end_conf" >> $tablename.conf
 
 clear
 echo "Creating Table Please Wait"
@@ -344,18 +386,13 @@ else
   read -p "Choose DataBase To Drop: " dbtodrop
   rm -r $dbtodrop
 fi
-		
-	
-	
 
-}
+} #end of drop_dp function
 
 drop_table(){
+
 	if [[ $dbtouse ]]
 		then
-#func_list
-#read -p "Choose DataBase: " dbtouse
-#switch_to_db $dbtouse
 table_list
 
 read -p "Enter Table Name To Drop: " tabledropname
@@ -374,21 +411,22 @@ fi
 } #end of dropping table func
 
 change_table_name(){
+
 	echo "Availabe Tables"
     table_list
 
-	read -p "Enter Old File Name" oldname
-	read -p "Enter New File Name" newname
+	read -p "Enter Old File Name: " oldname
+	read -p "Enter New File Name: " newname
     mv $oldname $newname
+    mv $oldname.conf $newname.conf
 
-
-}
+} #end of change_table_name function
 
 alter_table(){
+
 if [[ $dbtouse ]] 
 	then
 	clear
-	#         echo " You Are on [ $dbtouse ] Database"
 while true
   do
     echo " You Are on [ $dbtouse ] Database"
@@ -416,30 +454,154 @@ else
 	use_database
 fi
 
+} # end of alter_table function
 
-}
 
-use_database(){
-clear
-echo "You Must Select Database First"
-echo "Current Databases:"
-func_list
 
-if [[ $flagemptydb -eq 1 ]]
+
+check_null(){
+
+  if [[ $NL =~ "NotNull"* ]]
+    then 
+    if [[ $record == "" ]]
+      then
+      echo "Default Value Has Been Set"
+      echo $NL
+      record=`echo $NL | cut -d"," -f2`
+      echo $record
+      read -p "" ff
+      echo -n "$record " >> $tablename
+
+    else
+ 
+      echo -n "$record " >> $tablename
+
+    fi
+    
+  else
+   
+    echo -n "$record " >> $tablename
+
+  fi  
+} # end fo check_null function
+
+check_DT(){
+
+  if [[ $DT == "Ineteger" ]]
+    then
+    if [[ "$record" =~ ^[0-9]+$ ]]
+      then
+      
+      check_null
+    else
+      echo "You Must Enter Integer Value"
+      read -p "Add Field Value To Insert It: " record
+      check_DT
+
+    fi
+    else
+    check_null 
+
+  fi
+
+} #end of check_DT function
+check_pk(){
+
+  if [[ $PK == "Primary" ]]
+    then
+    
+  read -p "Add Field Value To Insert It: " record
+    
+    list_record=`cat $tablename | cut -d" " -f$i`
+     nr="f"
+    for f in $list_record
+do
+ 
+if  [[ $f == $record ]] 
   then
-    create_db
-else
-
-read -p "Select DataBase: " dbtouse
-switch_to_db $dbtouse
-flagusingdb=1
+ echo "exist"
+ echo $f
+ nr="t"
+  
 fi
 
-flagchange=1
+done
+if [[ $nr == "t" ]]
+  then
+  nr="f"
+  check_pk
+ 
+else
+  check_DT
+fi
 
-echo "You Are Using [$dbtouse] Database"
-} # end of use_database function
+else
+    read -p "Add Field Value To Insert It: " record
 
+check_DT
+fi
+} # end of check_pk function
+
+add_record(){
+clear
+if [[ $dbtouse ]]
+    then
+
+echo "Select Table To Insert in it"
+table_list
+
+read -p "Enter Table Name To add record: " tablename
+if [ -f $tablename ]
+then
+clear
+echo "" >> $tablename
+awk -i inplace 'NF > 0' $tablename
+echo "Your Are on [$tablename] Table" 
+echo " "
+ echo "Availabe Fields: "
+  awk 'NR==2' $tablename
+  echo " "
+  num_of_fields=`awk 'NR==2{print NF; exit}' $tablename`
+  for ((i=1;i<=$num_of_fields;i++ ))
+  do
+echo "******************************************************"
+  echo "Current Field is: " `awk -v t=$i 'NR==2{print $t}' $tablename`
+
+  PK=`awk -F: -v t=$(($i+4)) 'NR==t{print $3 }' $tablename.conf`
+  DT=`awk -F: -v t=$(($i+4)) 'NR==t{print $2 }' $tablename.conf`
+  NL=`awk -F: -v t=$(($i+4)) 'NR==t{print $4 }' $tablename.conf`
+
+   if [[ $PK == "Primary" ]]
+   	then
+   	echo "This is a primary field"
+   else
+   	echo "This Field isn't the primary"
+   fi
+   echo "Field Data Type is: " $DT
+
+if [[ $NL == "AcceptNull" ]]
+	then
+echo "This Field Accept Null Values"
+else
+	echo "This Field Doesn't Accept Null Values"
+
+fi
+echo " "
+
+  check_pk
+done
+
+else
+echo "Table Doesn't Exist"
+add_record
+fi
+else
+  
+  use_database
+fi
+
+
+} # end of add_record
 
 sort_table(){
 
@@ -453,7 +615,6 @@ echo "
 2-Back To Manager"
 read -p "Select Option : " sort_func_opt
 
-
 case $sort_func_opt in 
   1)
 clear 
@@ -466,32 +627,34 @@ read -p "Enter Table Name To Sort It: " tablename
 startnum=`grep -n "start_table" $tablename | grep -Eo '^[^:]+'`
 
 total_list=`cat $tablename | wc -l`
-t1=$((total_list-startnum))  
-clear
-echo "Availabe Rows :"
-cat $tablename | tail -$t1
+echo $total_list
+t1=$((total_list-2))
 
-endnum=`grep -n "end_conf" $tablename | grep -Eo '^[^:]+'`
+echo "Availabe Rows :"
+cat $tablename | head -$total_list | tail -$t1
+
+endnum=`grep -n "end_conf" $tablename.conf | grep -Eo '^[^:]+'`
 v=$(($endnum-1))
 t=$(($v-4))
 echo "Availabe Fields To Sort With :"
-to_count=`cat $tablename | head -$v | tail -$t | cut -d: -f1 | wc -l` 
-to_print=`cat $tablename | head -$v | tail -$t | cut -d: -f1` 
+to_count=`cat $tablename.conf | head -$v | tail -$t | cut -d: -f1 | wc -l` 
+to_print=`cat $tablename.conf | head -$v | tail -$t | cut -d: -f1` 
 
 for((i=1;i<=$to_count;i++))
 do
   field_name=`echo $to_print | cut -d" " -f"$i"`
   echo $i")" $field_name
 done
+
 read -p "Select Field To Sort With[Select No Of The Field] : " field_sort
 echo " 
-Choose preference to sort with 
-1- Ascending
-2- Descending
-"
+# Choose preference to sort with 
+# 1- Ascending
+# 2- Descending
+# "
 
 ch_field=$((field_sort+4))
-field_sort_type_check=`cat $tablename | head -$ch_field | tail -1 | cut -d: -f2`
+field_sort_type_check=`cat $tablename.conf | head -$ch_field | tail -1 | cut -d: -f2`
 
 read -p "" sort_opt
 clear
@@ -530,12 +693,185 @@ use_database
 
   fi
 
-} # end of function sort 
+} # end of sort_table function  
 
+select_according_to_field(){
+clear
+
+if [[ $dbtouse ]] 
+  then
+  echo "Availabe Tables: "
+  if [[ $tablename ]]
+  	then
+
+echo ""
+endnum=`grep -n "end_conf" $tablename.conf | grep -Eo '^[^:]+'`
+v=$(($endnum-1))
+t=$(($v-4))
+echo "Availabe Fields To Select With :"
+to_count=`cat $tablename.conf | head -$v | tail -$t | cut -d: -f1 | wc -l` 
+to_print=`cat $tablename.conf | head -$v | tail -$t | cut -d: -f1` 
+for((i=1;i<=$to_count;i++))
+do
+  field_name=`echo $to_print | cut -d" " -f"$i"`
+  echo $i")" $field_name
+
+done
+
+read -p "Choose Field [choose field number] : " field_selected
+
+read -p "Enter Value: " field_value
+
+awk  -F" " -v var1="$field_selected" -v var2="$field_value" ' { if($var1==var2){  print $0} } ' $tablename
+
+  else
+table_list
+read -p "Enter Table Name To Select From It : " tablename
+  fi
+
+  while true
+  do
+echo "
+1- to exit to previous menu"
+
+read -p "" select_field_opt
+
+case $select_field_opt in 
+	1) break ;;
+esac 
+
+  done
+
+else use_database
+fi
+
+
+} # end of select_according_to_field function
+
+delete_record(){
+
+	clear
+	if [[ $dbtouse ]] 
+  then
+  echo "Availabe Tables: "
+  table_list
+read -p "Enter Table Name To Delete From It : " tablename
+  if [[ $tablename ]]
+  	then
+
+echo ""
+endnum=`grep -n "end_conf" $tablename.conf | grep -Eo '^[^:]+'`
+v=$(($endnum-1))
+t=$(($v-4))
+echo "Availabe Fields To Select With :"
+to_count=`cat $tablename.conf | head -$v | tail -$t | cut -d: -f1 | wc -l` 
+to_print=`cat $tablename.conf | head -$v | tail -$t | cut -d: -f1` 
+for((i=1;i<=$to_count;i++))
+do
+  field_name=`echo $to_print | cut -d" " -f"$i"`
+  echo $i")" $field_name
+
+done
+
+total_list=`cat $tablename | wc -l`
+t1=$((total_list-2))  
+echo "Availabe Rows :"
+cat $tablename | tail -$t1 
+
+read -p "Choose Field [choose field number] : " field_selected
+
+read -p "Enter Value: " field_value
+
+awk -i inplace -F" " -v var1="$field_selected" -v var2="$field_value" ' { if($var1==var2){ $0="" } print  } ' $tablename 
+awk -i inplace 'NF > 0' $tablename
+
+  fi
+
+  while true
+  do
+echo "
+1- to exit to previous menu"
+
+read -p "" select_field_opt
+
+case $select_field_opt in 
+	1) break ;;
+esac 
+
+  done
+
+else use_database
+fi
+
+} # end of delete_field function
+
+edit_record(){
+
+clear
+	if [[ $dbtouse ]] 
+  then
+  echo "Availabe Tables: "
+  table_list
+read -p "Enter Table Name To Select From It : " tablename
+  if [[ $tablename ]]
+  	then
+
+echo ""
+endnum=`grep -n "end_conf" $tablename.conf | grep -Eo '^[^:]+'`
+v=$(($endnum-1))
+t=$(($v-4))
+echo "Availabe Fields To Edit :"
+to_count=`cat $tablename.conf | head -$v | tail -$t | cut -d: -f1 | wc -l` 
+to_print=`cat $tablename.conf | head -$v | tail -$t | cut -d: -f1` 
+for((i=1;i<=$to_count;i++))
+do
+  field_name=`echo $to_print | cut -d" " -f"$i"`
+  echo $i")" $field_name
+  arrayField[$i]=$field_name
+
+done
+
+total_list=`cat $tablename | wc -l`
+t1=$((total_list-2))  
+echo "Availabe Rows :"
+cat $tablename | tail -$t1 
+echo ""
+read -p "Enter Id of the required row to edit : " field_edit_id
+
+read -p "Choose Field To Edit [choose field number] : " field_selected
+
+read -p "Enter Value Old Value of [${arrayField[$field_selected]}] :  " field_value
+
+read -p "Enter New Value of [${arrayField[$field_selected]}]: " new_field_val
+
+field_edit_id=$((field_edit_id+2))
+
+awk -i inplace -F" " -v var1="$field_selected" -v var2="$field_value" -v var3="$new_field_val" -v var4="field_edit_id" ' { if($var1==var2){ $var1=var3 } print  } ' $tablename 
+awk -i inplace 'NF > 0' $tablename
+
+  fi
+
+  while true
+  do
+echo "
+1- to exit to previous menu"
+
+read -p "" select_field_opt
+
+case $select_field_opt in 
+	1) break ;;
+esac 
+
+  done
+
+else use_database
+fi
+
+} # end of edit_record function
 
 select_record(){
-  clear
 
+  clear
 if [[ $dbtouse ]] 
   then
   echo "Availabe Tables: "
@@ -558,16 +894,17 @@ case $select_opt in
 1)
 
 echo "*********************************************************" 
-startnum=`grep -n "start_table" $tablename | grep -Eo '^[^:]+'`
 total_list=`cat $tablename | wc -l`
-t1=$((total_list-startnum))  
+t1=$((total_list-2))  
 echo "Availabe Rows :"
 cat $tablename | tail -$t1 
 echo "*********************************************************"
-sleep 5
+sleep 2
 ;;
 
-2) ;;
+2) 
+select_according_to_field
+;;
 
 
 3)
@@ -576,25 +913,13 @@ total_list=`cat $tablename | wc -l`
 t1=$((startnum+1))
 echo $t1
 echo $total_list  
-echo "Availabe Rows :"
-# cat $tablename | tail -$t1 >> table-$tablename.html
-endnum=`grep -n "end_conf" $tablename | grep -Eo '^[^:]+'`
-v=$(($endnum-1))
-t=$(($v-4))
-echo "Availabe Fields To Sort With :"
-to_count=`cat $tablename | head -$v | tail -$t | cut -d: -f1 | wc -l` 
-to_print=`cat $tablename | head -$v | tail -$t | cut -d: -f1` 
-
-for((i=1;i<=$to_count;i++))
-do
-  field_name=`echo $to_print | cut -d" " -f"$i"`
-  echo $i")" $field_name
-done
 
 echo "*********************************************************" 
 awk -v var1="$t1" -v var2="$total_list" -v lister="$to_print" ' BEGIN{FS=" "; print "<div style=background:blue>" "<strong>"lister"</strong>" "</div>"  "<br/>" }
  NR==var1,NR==var2 { print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10 "<br/>" }' $tablename > $tablename.html
 echo "*********************************************************" 
+xdg-open $tablename.html
+
 ;;
 
 4)
@@ -602,10 +927,13 @@ startnum=`grep -n "start_table" $tablename | grep -Eo '^[^:]+'`
 total_list=`cat $tablename | wc -l`
 t1=$((total_list-startnum))  
 echo "Availabe Rows :"
-# cat $tablename | tail -$t1 >>table-$tablename.csv
-awk -v var1="$t1" -v var2="$total_list" -v lister="$to_print" ' BEGIN{FS=" "; print "<strong>"lister"</strong>" "<br/>" }
- NR==var1,NR==var2 { print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10 "<br/>" }' $tablename > $tablename.csv
+echo $to_print > $tablename.csv
+cat $tablename | tail -$t1 >>$tablename.csv
+# awk -v var1="$t1" -v var2="$total_list" -v lister="$to_print" ' BEGIN{FS=" "; print lister }
+#  NR==var1,NR==var2 { print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10 }' $tablename > $tablename.csv
+xdg-open $tablename.csv
 ;;
+
 5) break ;;
 esac
 
@@ -616,8 +944,49 @@ else
 fi
 
 
-}
+} # end of select_record function
 
+display_table(){
+clear
+if [[ $dbtouse ]] 
+  then
+
+table_list
+read -p "Enter Table Name To Select Show It's Schema : " tablename
+
+while true 
+do
+
+total_list=`cat $tablename.conf | wc -l`
+t=$((total_list-1))
+t2=$((t-4))
+clear
+
+echo "*********************************************************"
+echo "              Table Name : $tablename                    "
+echo "              -----------------------                    "
+
+ # echo "Column: "`cat $tablename.conf | head -$t | tail -$t2 | cut -d: -f1`
+ # echo "Datatype: "`cat $tablename.conf | head -$t | tail -$t2 | cut -d: -f2`
+ # echo "PrimaryKey: "`cat $tablename.conf | head -$t | tail -$t2 | cut -d: -f3`
+ # echo "Null Constrain: "`cat $tablename.conf | head -$t | tail -$t2 | cut -d: -f4`
+echo "Column : Datatype : PrimaryKey : Null Constrain "
+echo ""
+cat $tablename.conf | head -$t | tail -$t2
+echo ""
+echo "*********************************************************"
+echo ""
+read -p "Choose 1 To Back To Manager: " dis_table_opt
+
+case $dis_table_opt in 
+	1) break ;;
+esac
+done
+else
+	use_database
+fi
+
+} # end of display_table function
 
 while true
 do
@@ -637,31 +1006,28 @@ echo "Welcome To DataBase Manager
 4-  Alter Table
 5-  Add Record
 6-  Edit Record
-7-  Select Record
-8-  Display Table
-9-  Sort Table
-10- Drop Table
-11- Drop DB
-12- Quit Manager
+7-  Delete Record 
+8-  Select Record
+9-  Display Table
+10-  Sort Table
+11- Drop Table
+12- Drop DB
+13- Quit Manager
 "
-
 read -p "CHOOSE AN OPTION: " option
 case $option in
 1) use_database ;;
 2) create_db ;;
 3) create_table ;;
 4) alter_table ;;
-5) add_filed ;;
+5) add_record ;;
 6) edit_record ;;
-7) select_record ;;
-8) display_table ;;
-9) sort_table ;;
-10) drop_table ;;
-11) drop_db ;;
-12) exit ;;
-
+7) delete_record ;;
+8) select_record ;;
+9) display_table ;;
+10) sort_table ;;
+11) drop_table ;;
+12) drop_db ;;
+13) exit ;;
 esac
-
 done
-
-
