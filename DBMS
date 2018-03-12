@@ -6,6 +6,7 @@ flagchange=0
 flagemptydb=0
 flagusingdb=0
 regex_input="t"
+edit_flag="f"
 
 create_db() {
 clear
@@ -125,7 +126,7 @@ fi
 
 check_regex_input(){
   
-  if [[ $1 =~ ^[a-zA-Z0-9]+$ ]]
+  if [[ $1 =~ ^[a-zA-Z0-9]*$ ]]
 
   	then
  
@@ -549,9 +550,11 @@ check_null(){
     fi
     
   else
-   
-    echo -n "$record " >> $tablename
-
+  	if [[ $record == "" ]]
+      then
+      record="NULL"
+	fi
+      echo -n "$record " >> $tablename
   fi  
 } # end fo check_null function
 
@@ -701,11 +704,18 @@ read -p "Select Option : " sort_func_opt
 case $sort_func_opt in 
   1)
 clear 
-echo "Availabe Tables: "
+if [[ $tablename  ]]
+	then
+echo "Your Are On [$tablename] Table "
+else
+	echo "Availabe Tables: "
 echo ""
 table_list
 echo ""
 read -p "Enter Table Name To Sort It: " tablename
+fi
+
+
 
 startnum=`grep -n "start_table" $tablename | grep -Eo '^[^:]+'`
 
@@ -748,7 +758,7 @@ case $sort_opt in
   1)
 if [[ $field_sort_type_check == "Ineteger" ]]
 then
-cat $tablename | tail -$t1 | sort -t" " -k$field_sort -g  
+cat $tablename | tail -$t1 | sort -t" " -nk$field_sort  
 elif [[ $field_sort_type_check == "String" ]]
   then
 cat $tablename | tail -$t1 | sort -t" " -k$field_sort  
@@ -895,7 +905,112 @@ fi
 
 } # end of delete_field function
 
+check_edit_record_null(){
+
+  if [[ $NL =~ "NotNull"* ]]
+    then 
+    if [[ $new_field_val == "" ]]
+      then
+      new_field_val=`echo $NL | cut -d"," -f2` 
+      echo "Default Value Has Been Set To :" `echo $new_field_val`
+      
+awk -i inplace -F" " -v var1="$field_selected" -v var2="$field_value" -v var3="$new_field_val" -v var4="field_edit_id" ' { if($var1==var2){ $var1=var3 } print  } ' $tablename 
+      awk -i inplace 'NF > 0' $tablename
+    else
+ 
+awk -i inplace -F" " -v var1="$field_selected" -v var2="$field_value" -v var3="$new_field_val" -v var4="field_edit_id" ' { if($var1==var2){ $var1=var3 } print  } ' $tablename 
+      awk -i inplace 'NF > 0' $tablename
+    fi
+    
+  else
+  	    if [[ $new_field_val == "" ]]
+  	    	then
+  	    	new_field_val="NULL"
+  	    fi
+awk -i inplace -F" " -v var1="$field_selected" -v var2="$field_value" -v var3="$new_field_val" -v var4="field_edit_id" ' { if($var1==var2){ $var1=var3 } print  } ' $tablename 
+      awk -i inplace 'NF > 0' $tablename
+  fi  
+} # end fo check_null function
+
+check_editRecord_DT(){
+
+  if [[ $DT == "Ineteger" ]]
+    then
+    if [[ "$new_field_val" =~ ^[0-9]+$ || "$new_field_val" == "" ]]
+      then
+      
+      check_edit_record_null
+      
+    else
+      echo "You Must Enter Integer Value"
+      check_editRecord_PK
+
+    fi
+    else
+    check_edit_record_null
+    
+
+  fi
+
+} #end of check__edit_DT function
+
+
+check_editRecord_PK()
+{
+read -p "Enter New Value of [${arrayField[$field_selected]}]: " new_field_val
+
+ check_regex_input $new_field_val
+
+ if [[ $regex_input == "f" ]]
+ 	then
+check_editRecord_PK
+
+ else
+
+  if [[ $PK == "Primary" ]]
+    then
+    
+  
+    list_record=`cat $tablename | cut -d" " -f$field_selected`
+
+     nr_edit="f"
+
+    for f in $list_record
+do
+ 
+if  [[ $f == $new_field_val ]] 
+  then
+ echo "exist"
+ echo $f
+ nr_edit="t"
+  
+fi
+
+done
+if [[ $nr_edit == "t" ]]
+  then
+  nr_edit="f"
+  check_editRecord_PK
+ 
+else
+  check_editRecord_DT
+
+fi
+else
+ 
+  check_editRecord_DT
+
+fi
+fi
+} # end of check_edit_pk function
+
+
 edit_record(){
+
+	edit_flag="t"
+
+
+ 
 
 clear
 	if [[ $dbtouse ]] 
@@ -923,12 +1038,21 @@ done
 
 total_list=`cat $tablename | wc -l`
 t1=$((total_list-2))  
+echo ""
 echo "Availabe Rows :"
 cat $tablename | tail -$t1 
 echo ""
 # read -p "Enter Id of the required row to edit : " field_edit_id
 
 read -p "Choose Field To Edit [choose field number] : " field_selected
+
+  PK=`awk -F: -v t=$(($field_selected+4)) 'NR==t{print $3 }' $tablename.conf`
+  DT=`awk -F: -v t=$(($field_selected+4)) 'NR==t{print $2 }' $tablename.conf`
+  NL=`awk -F: -v t=$(($field_selected+4)) 'NR==t{print $4 }' $tablename.conf`
+echo "pk= " $PK
+
+
+
 
 read -p "Enter Value Old Value of [${arrayField[$field_selected]}] :  " field_value
 
@@ -938,21 +1062,21 @@ if [[ $regex_input == "f" ]]
 	then
 	edit_record
 else
+ check_editRecord_PK
+# read -p "Enter New Value of [${arrayField[$field_selected]}]: " new_field_val
+# check_regex_input $new_field_val
 
-read -p "Enter New Value of [${arrayField[$field_selected]}]: " new_field_val
-check_regex_input $new_field_val
-
-if [[ $regex_input == "f" ]]
-	then
-	edit_record
-else
+# if [[ $regex_input == "f" ]]
+	# then
+	# edit_record
+# else
 
 # field_edit_id=$((field_edit_id+2))
 
-awk -i inplace -F" " -v var1="$field_selected" -v var2="$field_value" -v var3="$new_field_val" -v var4="field_edit_id" ' { if($var1==var2){ $var1=var3 } print  } ' $tablename 
-awk -i inplace 'NF > 0' $tablename
+# awk -i inplace -F" " -v var1="$field_selected" -v var2="$field_value" -v var3="$new_field_val" -v var4="field_edit_id" ' { if($var1==var2){ $var1=var3 } print  } ' $tablename 
+# awk -i inplace 'NF > 0' $tablename
 fi
-fi
+# fi
   fi
 
   while true
@@ -1098,9 +1222,10 @@ clear
 if [[ $flagchange -eq 1 ]]
 	then
 echo "NOTE: You Are Using [$dbtouse] Database"
-
+echo "Warning You Can't Drop Any DataBase While it is in use"
 else 
 	echo "Warrning You Must Select Database First"
+
 fi
 echo " "
 echo "Welcome To DataBase Manager
