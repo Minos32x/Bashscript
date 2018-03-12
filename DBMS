@@ -1,8 +1,11 @@
 #! /bin/bash
+# trap 'echo "3eb Kda :p"' 20 2
 addf="f"
+flag_regex="t"
 flagchange=0
 flagemptydb=0
 flagusingdb=0
+regex_input="t"
 
 create_db() {
 clear
@@ -30,13 +33,25 @@ fi
 } #end of create_db func
 
 
+check_regex_db(){
+
+	if [[ $1 =~ ^[a-zA-Z0-9]+$ ]]
+		then
+       flag_regex="t"
+	else
+       flag_regex="f"
+       flagchange=0
+	fi
+} # end of check_regex_db
+
+
+
 use_database(){
 clear
 if [[ $flagchange == 1 ]]
 then
 cd ..
 fi
-	flagchange=1
 
 echo "You Must Select Database First"
 echo "Current Databases:"
@@ -48,13 +63,20 @@ if [[ $flagemptydb -eq 1 ]]
 else
 
 read -p "Select DataBase: " dbtouse
+check_regex_db $dbtouse # check if database name written sa7 :D
+###
+if [[ $flag_regex == "f" ]]
+	then
+	echo "erroooor"
+	 use_database 
+else
 switch_to_db $dbtouse
+	flagchange=1
+
 flagusingdb=1
 fi
-
-
-
-
+####
+fi
 
 echo "You Are Using [$dbtouse] Database"
 } # end of use_database function
@@ -100,6 +122,26 @@ else
 fi
 } #end of table listing func
 
+
+check_regex_input(){
+  
+  if [[ $1 =~ ^[a-zA-Z0-9]+$ ]]
+
+  	then
+ 
+  	regex_input="t"
+
+  else
+echo "PLease Enter A Valid Field Name"
+sleep 2
+regex_input="f"
+
+  fi
+
+} # end of check_regex_input
+
+
+
 add_filed(){
 
   echo "Availabe Tables"
@@ -110,6 +152,7 @@ add_filed(){
   addf="t"
   for ((i=1;i<=$colnumbers;i++ ))
   do   
+
   funccheck
   done
   echo "end_conf" >> $tablename.conf 
@@ -118,15 +161,33 @@ add_filed(){
 
 delete_field(){
 
-echo "Availabe Tables"
+if [[ $tablename ]]
+	then
+echo ""
+else
+	echo "Availabe Tables"
 table_list
 read -p "choose table: " tablename
+fi
+
+
 echo "available fields :"
 awk 'NR==2' $tablename
 read -p "choose field to delete: " deleted_field
-num=`awk -v target=$deleted_field '{if(NR == 2){for(i=1;i<=NF;i++){if ($i == target)print i}}}' $tablename`
+
+check_regex_input $deleted_field
+
+if [[ $regex_input == "t" ]]
+then
+
+num=`awk -v target=$deleted_field '{if(NR == 2){for(i=1;i<=(NF+2);i++){if ($i == target){break} }}}END{print i }' $tablename`
 sed -i  "/^$deleted_field:/d" $tablename.conf
-awk -i inplace -F" " -v var="$num"  '{ $var="" ; print }' $tablename
+awk -i inplace -F" " -v var="$num" -v iter=0 '{ iter++; if(iter == 1){print} else {$var="" ; print} }' $tablename
+
+else
+
+	delete_field
+fi
 
 } #end of func delete_field
 
@@ -211,7 +272,14 @@ clear
 
 funccheck(){
 	read -p "Enter Column [$i] Name: " ColName 
+	check_regex_input $ColName
 
+	if [[ $regex_input == "f" ]]
+		then
+   funccheck
+	else
+
+		
 	resultfield=`grep $ColName $tablename | wc -l`
 
 	if [[ $resultfield -eq 0 ]]
@@ -324,9 +392,11 @@ funccheck(){
     	funccheck
     	
     fi
+fi #end of check regex
 } # end of funccheck function
 
 create_table(){
+
 clear
 if [[ $dbtouse ]]
 	then
@@ -337,8 +407,10 @@ read -p "Create Table: " tablename
 
 if [ -f $tablename ]
 then
+flag_table_exist=1
 echo "Table Already Exists"
-exit
+sleep 2
+create_table
 
 else
 	
@@ -465,11 +537,9 @@ check_null(){
     then 
     if [[ $record == "" ]]
       then
-      echo "Default Value Has Been Set"
-      echo $NL
-      record=`echo $NL | cut -d"," -f2`
-      echo $record
-      read -p "" ff
+      record=`echo $NL | cut -d"," -f2` 
+      echo "Default Value Has Been Set To :" `echo $record`
+      
       echo -n "$record " >> $tablename
 
     else
@@ -489,14 +559,14 @@ check_DT(){
 
   if [[ $DT == "Ineteger" ]]
     then
-    if [[ "$record" =~ ^[0-9]+$ ]]
+    if [[ "$record" =~ ^[0-9]+$ || "$record" == "" ]]
       then
       
       check_null
     else
       echo "You Must Enter Integer Value"
-      read -p "Add Field Value To Insert It: " record
-      check_DT
+      # read -p "Add Field Value To Insert It: " record
+      check_pk
 
     fi
     else
@@ -507,13 +577,24 @@ check_DT(){
 } #end of check_DT function
 check_pk(){
 
+read -p "Add Field Value To Insert It: " record
+
+ check_regex_input $record
+
+ if [[ $regex_input == "f" ]]
+ 	then
+check_pk
+
+ else
+
   if [[ $PK == "Primary" ]]
     then
     
-  read -p "Add Field Value To Insert It: " record
-    
+  
     list_record=`cat $tablename | cut -d" " -f$i`
+
      nr="f"
+
     for f in $list_record
 do
  
@@ -533,12 +614,13 @@ if [[ $nr == "t" ]]
  
 else
   check_DT
+
 fi
-
 else
-    read -p "Add Field Value To Insert It: " record
-
+ 
 check_DT
+
+fi
 fi
 } # end of check_pk function
 
@@ -549,6 +631,7 @@ if [[ $dbtouse ]]
 
 echo "Select Table To Insert in it"
 table_list
+
 
 read -p "Enter Table Name To add record: " tablename
 if [ -f $tablename ]
@@ -722,8 +805,15 @@ read -p "Choose Field [choose field number] : " field_selected
 
 read -p "Enter Value: " field_value
 
-awk  -F" " -v var1="$field_selected" -v var2="$field_value" ' { if($var1==var2){  print $0} } ' $tablename
+check_regex_input $field_value
 
+# if [[ $regex_input == "f" ]]
+	# then
+	# select_according_to_field
+# else
+
+awk  -F" " -v var1="$field_selected" -v var2="$field_value" ' { if($var1==var2){  print $0} } ' $tablename
+# fi
   else
 table_list
 read -p "Enter Table Name To Select From It : " tablename
@@ -812,7 +902,7 @@ clear
   then
   echo "Availabe Tables: "
   table_list
-read -p "Enter Table Name To Select From It : " tablename
+read -p "Enter Table Name To Select Edit In It : " tablename
   if [[ $tablename ]]
   	then
 
@@ -836,19 +926,33 @@ t1=$((total_list-2))
 echo "Availabe Rows :"
 cat $tablename | tail -$t1 
 echo ""
-read -p "Enter Id of the required row to edit : " field_edit_id
+# read -p "Enter Id of the required row to edit : " field_edit_id
 
 read -p "Choose Field To Edit [choose field number] : " field_selected
 
 read -p "Enter Value Old Value of [${arrayField[$field_selected]}] :  " field_value
 
-read -p "Enter New Value of [${arrayField[$field_selected]}]: " new_field_val
+check_regex_input $field_value
 
-field_edit_id=$((field_edit_id+2))
+if [[ $regex_input == "f" ]]
+	then
+	edit_record
+else
+
+read -p "Enter New Value of [${arrayField[$field_selected]}]: " new_field_val
+check_regex_input $new_field_val
+
+if [[ $regex_input == "f" ]]
+	then
+	edit_record
+else
+
+# field_edit_id=$((field_edit_id+2))
 
 awk -i inplace -F" " -v var1="$field_selected" -v var2="$field_value" -v var3="$new_field_val" -v var4="field_edit_id" ' { if($var1==var2){ $var1=var3 } print  } ' $tablename 
 awk -i inplace 'NF > 0' $tablename
-
+fi
+fi
   fi
 
   while true
